@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 import sys
+import getopt
 from PIL import Image, ImageDraw, ImageFont
 
 PY3 = sys.version_info[0] == 3
@@ -10,7 +11,7 @@ if not PY3:
     range = xrange
 
 
-def word2image(word, width=400, fontpath='PingFangBold.ttf'):
+def word2image(word, debug=False, width=400, fontpath='PingFangBold.ttf'):
     '''
     @brief 将一个中文字符转为图片
     @params word: 一个中文字,__len__长度为1
@@ -19,7 +20,7 @@ def word2image(word, width=400, fontpath='PingFangBold.ttf'):
     @return image
     '''
     # assert len(word) == 1
-    page_width, page_height = (400, 450)
+    page_width, page_height = (400 * len(word), 450)
     word_color = '#000000'  # 文字颜色,黑色
     bg_color = '#ffffff'  # 背景颜色,白色
 
@@ -30,7 +31,8 @@ def word2image(word, width=400, fontpath='PingFangBold.ttf'):
 
     height = int(width * 1.0 / page_width * page_height)
     img = img.resize((width, height), Image.NEAREST)
-    # img.save('test.png')
+    if debug:
+        img.save('test.png')
     # img.show()
     return img
 
@@ -63,6 +65,48 @@ def image2print(img, char, width=40):
     return txt
 
 
+WIDE_MAP = dict((i, i + 0xFEE0) for i in range(0x21, 0x7F))
+WIDE_MAP[0x20] = 0x3000
+
+def widen(s):
+    """
+    Convert all ASCII characters to the full-width counterpart.
+    [https://gist.github.com/jcayzac/1485005]
+    """
+    return str(s).translate(WIDE_MAP)
+
+
+
+def usage():
+    print('''NAME
+       zh2emoji - create Chinese character banners
+
+SYNOPSIS
+       zh2emoji.py [-b <BIG-text>] [-s <small-char>] [-w <width>] [-d --debug] [--widen]
+
+DESCRIPTION
+       Just similar to figlet, but making chinese figlet, making emoji's figlet.
+
+       -b
+              The string to generate a banner of
+
+       -s
+              The character to draw the banner
+
+       -w
+              The width of the banner
+
+       -d, --debug
+
+              Turn on debug mode. A preview image named test.png will be saved
+
+       --widen
+
+              Force the banner text to be full-width characters
+''')
+    sys.exit(2)
+
+
 if __name__ == '__main__':
     ''' demo
     使用不同的填充方法显示来展示"茴"字
@@ -70,9 +114,28 @@ if __name__ == '__main__':
     对于emoji表情, 可能跟终端的打印方式有关, 对比后自行决定后面需不需要加上空格填充;
     对于中文,输出正好;
     '''
-    sys.stdout.write(image2print(word2image('茴'), 'W ', width=40))
-    sys.stdout.write("\n")
-    sys.stdout.write(image2print(word2image('茴'), '茴', width=40))
-    sys.stdout.write("\n")
-    sys.stdout.write(image2print(word2image('熊'), '熊'))
-    sys.stdout.write("\n")
+    big_text = 'A'
+    small_char = 'a'
+    w = 40
+    wide = False
+    debug = False
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'b:s:w:d', ['debug', 'widen'])
+    except getopt.GetoptError:
+        usage()
+    for opt, arg in opts:
+        if opt == '-b':
+            big_text = arg
+        elif opt == '-s':
+            small_char = arg
+        elif opt == '-w':
+            w = int(arg)
+        elif opt in ('-d', '--debug'):
+            debug = True
+        elif opt == '--widen':
+            wide = True
+        else:
+            usage()
+    if wide:
+        big_text = widen(big_text)
+    print(image2print(word2image(big_text, debug), widen(small_char), w))
